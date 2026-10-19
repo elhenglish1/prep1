@@ -1,0 +1,18 @@
+{
+  "name": "sandbox-quickstart",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.34.3",
+  "dependencies": {
+    "@vercel/sandbox": "^3.8.0",
+    "dotenv": "^18.0.8",
+    "tsx": "^4.23.15"
+  }
+}
