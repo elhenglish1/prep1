@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- 🔒 حماية إلزامية - ضع هذا في أول <head> في index.html القديم -->
+<script>
+  (function(){
+    const user = localStorage.getItem('elh_current_user');
+    const admin = localStorage.getItem('elh_admin');
+    const path = window.location.pathname;
+    // لو مش مسجل وداخل على index.html → وديه login.html
+    if(!user && !admin && !path.includes('login.html')){
+      window.location.replace('login.html');
+    }
+  })();
+</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = 'https://nlbailnajoufqvqdmbjo.supabase.co';
