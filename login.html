@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELH - تسجيل الدخول</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{font-family:'Cairo',sans-serif}</style>
+</head>
+<body class="bg-[#F8FAFC] min-h-screen flex items-center justify-center p-4">
+<div id="loginGate" class="w-full max-w-5xl bg-white rounded-[24px] shadow-2xl overflow-hidden grid md:grid-cols-5 border">
+<div class="md:col-span-2 bg-gradient-to-br from-[#00D1C1] to-[#0F172A] p-8 text-white flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl mb-4">📚</div>
+<h1 class="text-2xl font-extrabold">ELH English Hub</h1>
+<p class="text-sm opacity-80 mt-2">منصة تعليمية - 5 حواس - AI</p>
+</div>
+<div class="mt-8">
+<a href="https://calendly.com/tamerrabie62?utm_source=ELH_LoginGate" target="_blank" class="block w-full bg-[#FFB800] text-[#0F172A] text-center py-3 rounded-xl font-bold text-sm">📅 احجز حصة مجانية</a>
+</div>
+</div>
+<div class="md:col-span-3 p-6 md:p-8">
+<div class="flex bg-gray-100 rounded-xl p-1 mb-6">
+<button id="tabNew" onclick="switchTab('new')" class="flex-1 py-2.5 rounded-lg bg-white shadow font-bold text-sm">تسجيل جديد</button>
+<button id="tabLogin" onclick="switchTab('login')" class="flex-1 py-2.5 rounded-lg font-bold text-sm text-gray-500">دخول</button>
+</div>
+<div id="formNew">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+<div class="md:col-span-2"><label class="text-xs font-bold">الاسم كامل *</label><input id="regName" placeholder="أحمد محمد" class="w-full mt-1 p-3 border-2 rounded-xl text-sm"></div>
+<div><label class="text-xs font-bold">اسم المستخدم *</label><input id="regUsername" placeholder="ahmed2026" class="w-full mt-1 p-3 border-2 rounded-xl text-sm"><p id="userCheck" class="text-[11px] mt-1"></p></div>
+<div><label class="text-xs font-bold">المستوى *</label><select id="regLevel" class="w-full mt-1 p-3 border-2 rounded-xl text-sm"><option value="Prep1">Prep1</option><option value="Prep1" selected>Prep2</option><option value="Prep3">Prep3</option></select></div>
+<div><label class="text-xs font-bold">البريد *</label><input id="regEmail" type="email" placeholder="a@mail.com" class="w-full mt-1 p-3 border-2 rounded-xl text-sm"></div>
+<div><label class="text-xs font-bold">واتساب ولي الأمر *</label><input id="regWhatsapp" placeholder="201234567890" class="w-full mt-1 p-3 border-2 rounded-xl text-sm"></div>
+<div class="md:col-span-2 flex gap-2"><input id="regCode" placeholder="كود التحقق" class="flex-1 p-3 border-2 rounded-xl text-sm"><button onclick="sendVerificationCode()" class="px-4 bg-black text-white rounded-xl text-xs font-bold">إرسال الكود</button></div>
+<div class="relative"><label class="text-xs font-bold">كلمة السر *</label><input id="regPass1" type="password" class="w-full mt-1 p-3 border-2 rounded-xl text-sm"><button type="button" onclick="togglePass('regPass1',this)" class="absolute left-2 top-8 text-xs">👁️</button></div>
+<div class="relative"><label class="text-xs font-bold">تأكيد *</label><input id="regPass2" type="password" class="w-full mt-1 p-3 border-2 rounded-xl text-sm"><button type="button" onclick="togglePass('regPass2',this)" class="absolute left-2 top-8 text-xs">👁️</button></div>
+</div>
+<button onclick="registerStudent()" id="regBtn" class="w-full mt-4 bg-[#00D1C1] text-white py-3.5 rounded-xl font-bold">✨ تسجيل وإدخال الموقع</button>
+</div>
+<div id="formLogin" class="hidden space-y-3">
+<input id="loginUsername" placeholder="اسم المستخدم" class="w-full p-3 border-2 rounded-xl text-sm">
+<div class="relative"><input id="loginPassword" type="password" placeholder="كلمة السر" class="w-full p-3 border-2 rounded-xl text-sm"><button type="button" onclick="togglePass('loginPassword',this)" class="absolute left-2 top-3 text-xs">👁️</button></div>
+<button onclick="loginStudent()" id="loginBtn" class="w-full bg-[#0F172A] text-white py-3.5 rounded-xl font-bold">🚀 دخول الموقع</button>
+<div class="mt-4 p-3 bg-yellow-50 border rounded-xl flex gap-2"><input id="adminUser" placeholder="admin" class="flex-1 p-2 border rounded text-xs"><input id="adminPass" type="password" placeholder="Masar@2026" class="flex-1 p-2 border rounded text-xs"><button onclick="loginAdmin()" class="px-3 bg-yellow-500 text-white rounded text-xs">إدارة</button></div>
+</div>
+</div>
+</div>
+
+<div id="successGate" class="hidden fixed inset-0 bg-[#F8FAFC] flex items-center justify-center p-4 z-50">
+<div class="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+<div class="text-5xl mb-4">🎉</div>
+<h2 class="text-xl font-bold">أهلاً <span id="welcomeName"></span>!</h2>
+<p class="text-sm text-gray-600 mt-2">تم الدخول بنجاح</p>
+<button onclick="enterSite()" class="w-full mt-6 bg-[#00D1C1] text-white py-3 rounded-xl font-bold">ادخل الموقع الآن →</button>
+</div>
+</div>
+
+<script>
+// === Supabase - مشروعك الجديد ===
+const SUPABASE_URL = 'https://nlbailnajoufqvqdmbjo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_BdxPeeKHPbAQdccib46oGA_qMSxqMiG';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let generatedCode = '';
+
+function switchTab(t){
+ document.getElementById('formNew').classList.toggle('hidden', t!=='new');
+ document.getElementById('formLogin').classList.toggle('hidden', t!=='login');
+}
+function togglePass(id, btn){
+ const i=document.getElementById(id);
+ i.type=i.type==='password'?'text':'password';
+ btn.textContent=i.type==='text'?'🙈':'👁️';
+}
+function sendVerificationCode(){
+ const wa=document.getElementById('regWhatsapp').value.trim();
+ if(wa.length<10){alert('ادخل واتساب صحيح');return;}
+ generatedCode=Math.floor(100000+Math.random()*900000).toString();
+ const link=`https://wa.me/${wa}?text=${encodeURIComponent('كود ELH: '+generatedCode)}`;
+ window.open(link,'_blank');
+ document.getElementById('regCode').value=generatedCode;
+}
+function enterSite(){
+ // بعد تسجيل الدخول، يوديه للمحتوى الحقيقي في نفس الموقع
+ window.location.href = './index.html';
+ // أو: window.location.href = '/';
+}
+async function registerStudent(){
+ const name=document.getElementById('regName').value.trim();
+ const username=document.getElementById('regUsername').value.trim().toLowerCase();
+ const email=document.getElementById('regEmail').value.trim();
+ const whatsapp=document.getElementById('regWhatsapp').value.trim();
+ const code=document.getElementById('regCode').value.trim();
+ const p1=document.getElementById('regPass1').value;
+ const p2=document.getElementById('regPass2').value;
+ const level=document.getElementById('regLevel').value;
+ if(!name||!username||!email||!whatsapp||!p1){alert('اكمل البيانات');return;}
+ if(p1!==p2){alert('كلمتا السر غير متطابقة');return;}
+ if(generatedCode && code!==generatedCode){alert('كود التحقق خاطئ');return;}
+ const btn=document.getElementById('regBtn'); btn.textContent='جاري...'; btn.disabled=true;
+ const {data:exist}=await supabaseClient.from('students').select('username').eq('username',username).maybeSingle();
+ if(exist){alert('اسم المستخدم موجود'); btn.textContent='✨ تسجيل وإدخال الموقع'; btn.disabled=false; return;}
+ const {data,error}=await supabaseClient.from('students').insert([{name,username,email,whatsapp,password_hash:btoa(p1),level,registration_date:new Date().toISOString(),last_login:new Date().toISOString()}]).select().single();
+ btn.textContent='✨ تسجيل وإدخال الموقع'; btn.disabled=false;
+ if(error){alert(error.message);return;}
+ localStorage.setItem('elh_current_user',JSON.stringify(data));
+ localStorage.setItem('elh_student',JSON.stringify(data));
+ showSuccess(data);
+}
+async function loginStudent(){
+ const username=document.getElementById('loginUsername').value.trim().toLowerCase();
+ const password=document.getElementById('loginPassword').value;
+ const {data,error}=await supabaseClient.from('students').select('*').eq('username',username).single();
+ if(error||!data){alert('المستخدم غير موجود');return;}
+ if(btoa(password)!==data.password_hash){alert('كلمة السر خاطئة');return;}
+ await supabaseClient.from('students').update({last_login:new Date().toISOString()}).eq('id',data.id);
+ localStorage.setItem('elh_current_user',JSON.stringify(data));
+ localStorage.setItem('elh_student',JSON.stringify(data));
+ showSuccess(data);
+}
+function loginAdmin(){
+ const u=document.getElementById('adminUser').value.trim();
+ const p=document.getElementById('adminPass').value;
+ if(u==='admin' && p==='Masar@2026'){
+  localStorage.setItem('elh_admin','true');
+  alert('دخول إدارة');
+  window.location.href='./admin.html';
+ } else alert('بيانات الإدارة خاطئة');
+}
+function showSuccess(s){
+ document.getElementById('welcomeName').textContent=s.name;
+ document.getElementById('loginGate').classList.add('hidden');
+ document.getElementById('successGate').classList.remove('hidden');
+ setTimeout(()=>enterSite(),1200);
+}
+// Auto login + username check
+window.addEventListener('load', async()=>{
+ const saved=localStorage.getItem('elh_student');
+ if(saved){
+  try{
+   const student=JSON.parse(saved);
+   const {data}=await supabaseClient.from('students').select('*').eq('id',student.id).single();
+   if(data){ localStorage.setItem('elh_current_user',JSON.stringify(data)); showSuccess(data); }
+  }catch(e){}
+ }
+ document.getElementById('regUsername').addEventListener('blur', async(e)=>{
+  const u=e.target.value.trim().toLowerCase(); if(!u) return;
+  const {data}=await supabaseClient.from('students').select('username').eq('username',u).maybeSingle();
+  const el=document.getElementById('userCheck');
+  if(data){el.textContent='❌ موجود'; el.className='text-[11px] text-red-600';} else {el.textContent='✅ متاح'; el.className='text-[11px] text-green-600';}
+ });
+ // Auto level from URL
+ const params=new URLSearchParams(location.search);
+ let lvl=params.get('level');
+ if(!lvl){
+  if(location.href.includes('prep1')) lvl='Prep1';
+  else if(location.href.includes('prep3')) lvl='Prep3';
+  else lvl='Prep2';
+ }
+ document.getElementById('regLevel').value=lvl;
+});
+</script>
+</body>
+</html>
