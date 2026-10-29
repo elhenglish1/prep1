@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELH - لوحة الإدارة</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>*{font-family:'Cairo',sans-serif}</style>
+</head>
+<body class="bg-[#F8FAFC] min-h-screen">
+<script>
+// === حماية صفحة الإدارة ===
+(function(){
+  const admin = localStorage.getItem('elh_admin');
+  const user = localStorage.getItem('elh_current_user');
+  if(!admin){
+    // لو مش أدمن، وديه login.html
+    if(!window.location.pathname.includes('login.html')){
+      alert('يجب تسجيل دخول الإدارة أولاً - admin / Masar@2026');
+      window.location.replace('./login.html');
+    }
+  }
+})();
+</script>
+
+<header class="bg-[#0F172A] text-white p-4 flex justify-between items-center">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-[#00D1C1] rounded-xl flex items-center justify-center">📚</div>
+<div><h1 class="font-bold">ELH - لوحة الإدارة</h1><p class="text-xs opacity-60">Admin Dashboard - Supabase Live</p></div>
+</div>
+<div class="flex gap-2">
+<a href="./index.html" class="px-4 py-2 bg-white/10 rounded-lg text-xs">🏠 الموقع</a>
+<button onclick="logoutAdmin()" class="px-4 py-2 bg-red-500 rounded-lg text-xs">خروج</button>
+</div>
+</header>
+
+<div class="p-4 md:p-6 max-w-7xl mx-auto">
+<!-- Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+<div class="bg-white p-4 rounded-2xl shadow border"><p class="text-xs text-gray-500">إجمالي الطلاب</p><p id="totalStudents" class="text-2xl font-bold">0</p></div>
+<div class="bg-white p-4 rounded-2xl shadow border"><p class="text-xs text-gray-500">نشط اليوم</p><p id="activeToday" class="text-2xl font-bold text-green-600">0</p></div>
+<div class="bg-white p-4 rounded-2xl shadow border"><p class="text-xs text-gray-500">متوسط الدرجات</p><p id="avgScore" class="text-2xl font-bold text-[#00D1C1]">0</p></div>
+<div class="bg-white p-4 rounded-2xl shadow border"><p class="text-xs text-gray-500">Prep1/2/3</p><p id="levels" class="text-sm font-bold">-</p></div>
+</div>
+
+<div class="grid md:grid-cols-3 gap-6">
+<!-- List -->
+<div class="md:col-span-2 bg-white rounded-2xl shadow border p-4">
+<div class="flex justify-between items-center mb-4">
+<h2 class="font-bold">الطلاب - مرتب حسب آخر دخول</h2>
+<div class="flex gap-2">
+<select id="filterLevel" onchange="loadStudents()" class="p-2 border rounded-lg text-xs"><option value="">الكل</option><option value="Prep1">Prep1</option><option value="Prep2">Prep2</option><option value="Prep3">Prep3</option></select>
+<button onclick="loadStudents()" class="px-3 py-2 bg-[#00D1C1] text-white rounded-lg text-xs">تحديث</button>
+</div>
+</div>
+<div id="studentsList" class="space-y-2 max-h-[600px] overflow-auto">جاري التحميل...</div>
+</div>
+
+<!-- Details -->
+<div class="bg-white rounded-2xl shadow border p-4">
+<h2 class="font-bold mb-3">تفاصيل الطالب</h2>
+<div id="studentDetails" class="text-sm text-gray-500">اختر طالب من القائمة</div>
+<div id="pdfActions" class="hidden mt-4 space-y-2">
+<h3 class="font-bold text-xs">اختر أجزاء التقرير للإرسال:</h3>
+<label class="flex items-center gap-2 text-xs"><input type="checkbox" id="chkPerformance" checked> الأداء والدرجات</label>
+<label class="flex items-center gap-2 text-xs"><input type="checkbox" id="chkSenses" checked> الحواس المفضلة</label>
+<label class="flex items-center gap-2 text-xs"><input type="checkbox" id="chkWeak" checked> نقاط الضعف</label>
+<label class="flex items-center gap-2 text-xs"><input type="checkbox" id="chkParentTips" checked> نصائح ولي الأمر</label>
+<label class="flex items-center gap-2 text-xs"><input type="checkbox" id="chkTeacherTips" checked> نصائح المعلم</label>
+<button onclick="generatePDF()" class="w-full mt-2 bg-[#0F172A] text-white py-2 rounded-xl text-xs font-bold">📄 توليد PDF</button>
+<button onclick="sendWhatsApp()" class="w-full bg-green-500 text-white py-2 rounded-xl text-xs font-bold">💬 إرسال واتساب</button>
+<button onclick="sendEmail()" class="w-full bg-[#FFB800] text-[#0F172A] py-2 rounded-xl text-xs font-bold">📧 إرسال إيميل</button>
+</div>
+<canvas id="sensesChart" class="mt-4"></canvas>
+</div>
+</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://nlbailnajoufqvqdmbjo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_BdxPeeKHPbAQdccib46oGA_qMSxqMiG';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentStudent = null;
+let chart = null;
+
+async function loadStudents(){
+ const filter = document.getElementById('filterLevel').value;
+ let query = supabaseClient.from('students').select('*').order('last_login', {ascending:false}).limit(100);
+ if(filter) query = query.eq('level', filter);
+ const {data, error} = await query;
+ if(error){ document.getElementById('studentsList').innerHTML='خطأ: '+error.message; return; }
+ 
+ // Stats
+ document.getElementById('totalStudents').textContent = data.length;
+ const today = new Date().toISOString().slice(0,10);
+ const active = data.filter(s=> s.last_login && s.last_login.slice(0,10)===today).length;
+ document.getElementById('activeToday').textContent = active;
+ const avg = data.length ? (data.reduce((a,b)=>a+(b.avg_score||0),0)/data.length).toFixed(1) : 0;
+ document.getElementById('avgScore').textContent = avg;
+ const counts = {};
+ data.forEach(s=>{ counts[s.level||'Unknown']=(counts[s.level||'Unknown']||0)+1; });
+ document.getElementById('levels').textContent = Object.entries(counts).map(([k,v])=>`${k}:${v}`).join(' ');
+
+ const list = document.getElementById('studentsList');
+ if(!data.length){ list.innerHTML='<p class=text-center text-gray-400>لا يوجد طلاب</p>'; return; }
+ list.innerHTML = data.map(s=>`
+  <div onclick="selectStudent('${s.id}')" class="p-3 border rounded-xl hover:bg-gray-50 cursor-pointer flex justify-between items-center ${currentStudent && currentStudent.id===s.id ? 'bg-teal-50 border-teal-300':''}">
+   <div>
+    <p class="font-bold text-sm">${s.name} <span class="text-xs text-gray-400">(${s.username})</span></p>
+    <p class="text-[11px] text-gray-500">${s.email} • ${s.whatsapp} • ${s.level||'-'} • CEFR:${s.cefr_level||'A1'}</p>
+    <p class="text-[10px] text-gray-400">سجل: ${new Date(s.registration_date).toLocaleDateString('ar-EG')} - آخر دخول: ${s.last_login ? new Date(s.last_login).toLocaleString('ar-EG') : '-'}</p>
+   </div>
+   <div class="text-left"><span class="text-xs bg-gray-100 px-2 py-1 rounded">${s.total_hours||0}h</span></div>
+  </div>
+ `).join('');
+}
+
+async function selectStudent(id){
+ const {data} = await supabaseClient.from('students').select('*').eq('id', id).single();
+ if(!data) return;
+ currentStudent = data;
+ // Activities
+ const {data:acts} = await supabaseClient.from('activities').select('*').eq('student_id', id).order('created_at', {ascending:false}).limit(20);
+ 
+ document.getElementById('studentDetails').innerHTML = `
+  <div class="space-y-2">
+   <p><b>الاسم:</b> ${data.name}</p>
+   <p><b>اليوزر:</b> ${data.username}</p>
+   <p><b>الإيميل:</b> ${data.email}</p>
+   <p><b>واتساب ولي الأمر:</b> ${data.whatsapp}</p>
+   <p><b>المستوى:</b> ${data.level} - CEFR: ${data.cefr_level}</p>
+   <p><b>تاريخ التسجيل:</b> ${new Date(data.registration_date).toLocaleString('ar-EG')}</p>
+   <p><b>آخر دخول:</b> ${data.last_login ? new Date(data.last_login).toLocaleString('ar-EG') : '-'}</p>
+   <p><b>ساعات:</b> ${data.total_hours||0} - اختبارات: ${data.total_tests||0} - متوسط: ${data.avg_score||0}</p>
+   <p><b>نقاط ضعف:</b> ${(data.weak_points||[]).join(', ')||'-'}</p>
+   <p class="text-[11px] mt-2"><b>آخر أنشطة (${acts?.length||0}):</b><br>${(acts||[]).map(a=>`${a.activity_type} ${a.unit_id||''} ${a.score||''} - ${new Date(a.created_at).toLocaleDateString()}`).join('<br>')||'-'}</p>
+  </div>
+ `;
+ document.getElementById('pdfActions').classList.remove('hidden');
+ drawSenses(data.senses);
+}
+
+function drawSenses(senses){
+ const ctx = document.getElementById('sensesChart');
+ let vals = senses;
+ if(typeof vals==='string') try{ vals=JSON.parse(vals); }catch(e){ vals={visual:0,audio:0,kinesthetic:0,social:0,analytical:0} }
+ if(!vals) vals={visual:0,audio:0,kinesthetic:0,social:0,analytical:0};
+ const data = [vals.visual||0, vals.audio||0, vals.kinesthetic||0, vals.social||0, vals.analytical||0];
+ if(chart) chart.destroy();
+ chart = new Chart(ctx, {type:'bar', data:{labels:['بصري','سمعي','حركي','اجتماعي','تحليلي'], datasets:[{label:'تفضيل الحواس', data, backgroundColor:'#00D1C1'}]}, options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+}
+
+function generatePDF(){
+ if(!currentStudent) return;
+ const {jsPDF} = window.jspdf;
+ const doc = new jsPDF();
+ doc.setFontSize(12);
+ doc.text(`ELH Report - ${currentStudent.name}`, 10, 10);
+ doc.text(`Username: ${currentStudent.username}`, 10, 20);
+ doc.text(`Level: ${currentStudent.level} - CEFR: ${currentStudent.cefr_level}`, 10, 30);
+ doc.text(`Hours: ${currentStudent.total_hours} - Avg: ${currentStudent.avg_score}`, 10, 40);
+ let y=50;
+ if(document.getElementById('chkPerformance').checked){ doc.text(`Performance: ${currentStudent.avg_score||0}`, 10, y); y+=10; }
+ if(document.getElementById('chkSenses').checked){ doc.text(`Senses: ${JSON.stringify(currentStudent.senses||{})}`, 10, y); y+=10; }
+ if(document.getElementById('chkWeak').checked){ doc.text(`Weak: ${(currentStudent.weak_points||[]).join(', ')}`, 10, y); y+=10; }
+ if(document.getElementById('chkParentTips').checked){ doc.text(`Parent Tips: Follow up daily, encourage ${currentStudent.senses ? Object.keys(currentStudent.senses).reduce((a,b)=> currentStudent.senses[a]>currentStudent.senses[b]?a:b) : 'visual'} learning`, 10, y); y+=10; }
+ if(document.getElementById('chkTeacherTips').checked){ doc.text(`Teacher Tips: Focus on ${currentStudent.weak_points||'grammar'}`, 10, y); y+=10; }
+ doc.save(`${currentStudent.username}-report.pdf`);
+}
+
+function sendWhatsApp(){
+ if(!currentStudent) return;
+ const msg = `تقرير الطالب ${currentStudent.name} - المستوى ${currentStudent.level} - متوسط ${currentStudent.avg_score} - CEFR ${currentStudent.cefr_level} - رابط الحجز https://calendly.com/tamerrabie62`;
+ const link = `https://wa.me/${currentStudent.whatsapp}?text=${encodeURIComponent(msg)}`;
+ window.open(link, '_blank');
+}
+
+function sendEmail(){
+ if(!currentStudent) return;
+ const subject = `تقرير ELH - ${currentStudent.name}`;
+ const body = `تقرير الطالب ${currentStudent.name}
+المستوى: ${currentStudent.level}
+المتوسط: ${currentStudent.avg_score}
+
+رابط الحجز: https://calendly.com/tamerrabie62
+
+مع تحيات ELH`;
+ window.location.href = `mailto:${currentStudent.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function logoutAdmin(){
+ localStorage.removeItem('elh_admin');
+ localStorage.removeItem('elh_current_user');
+ window.location.replace('./login.html');
+}
+
+window.addEventListener('load', loadStudents);
+</script>
+</body>
+</html>
